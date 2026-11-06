@@ -10,11 +10,13 @@ export const MAX_LEVERAGE = 20
 const STORAGE_KEY = 'ts:account:v1'
 
 export type Side = 'long' | 'short'
+export type Market = 'spot' | 'futures'
 
 export interface Position {
   id: string
   symbol: string
   side: Side
+  market: Market
   qty: number
   entry: number
   leverage: number
@@ -27,6 +29,7 @@ export interface ClosedTrade {
   id: string
   symbol: string
   side: Side
+  market: Market
   qty: number
   entry: number
   exit: number
@@ -81,6 +84,7 @@ export function usedMargin(account: Account): number {
 export interface OpenParams {
   symbol: string
   side: Side
+  market?: Market
   size: number
   unit: 'usdt' | 'qty'
   leverage: number
@@ -96,7 +100,8 @@ export function openPosition(
   id = makeId(),
 ): { account: Account; position: Position } {
   const { symbol, side, size, unit, price } = params
-  const leverage = Math.round(params.leverage)
+  const market: Market = params.market === 'spot' ? 'spot' : 'futures'
+  const leverage = market === 'spot' ? 1 : Math.round(params.leverage)
   if (!Number.isFinite(price) || price <= 0) throw new TradeError('Precio de mercado no disponible')
   if (!Number.isFinite(size) || size <= 0) throw new TradeError('Indica un tamaño mayor que 0')
   if (leverage < 1 || leverage > MAX_LEVERAGE) {
@@ -117,6 +122,7 @@ export function openPosition(
     id,
     symbol,
     side,
+    market,
     qty,
     entry: price,
     leverage,
@@ -147,6 +153,7 @@ export function closePosition(
     id: position.id,
     symbol: position.symbol,
     side: position.side,
+    market: position.market ?? 'futures',
     qty: position.qty,
     entry: position.entry,
     exit: price,
@@ -199,8 +206,15 @@ function sanitize(raw: unknown): Account {
   return {
     startBalance: typeof a.startBalance === 'number' ? a.startBalance : START_BALANCE,
     cash: a.cash,
-    positions: Array.isArray(a.positions) ? (a.positions as Position[]) : [],
-    history: Array.isArray(a.history) ? (a.history.slice(0, 200) as ClosedTrade[]) : [],
+    positions: Array.isArray(a.positions)
+      ? (a.positions as Position[]).map((p) => ({ ...p, market: p.market === 'spot' ? 'spot' : 'futures' }))
+      : [],
+    history: Array.isArray(a.history)
+      ? (a.history.slice(0, 200) as ClosedTrade[]).map((t) => ({
+          ...t,
+          market: t.market === 'spot' ? 'spot' : 'futures',
+        }))
+      : [],
   }
 }
 
@@ -255,6 +269,20 @@ class PaperStore {
     const { account, trade } = closePosition(this.state, positionId, price)
     this.commit(account)
     return trade
+  }
+
+  closeSpot(symbol: string, price: number): ClosedTrade[] {
+    const ids = this.state.positions.filter((p) => p.market === 'spot' && p.symbol === symbol).map((p) => p.id)
+    if (ids.length === 0) return []
+    let account = this.state
+    const trades: ClosedTrade[] = []
+    for (const id of ids) {
+      const res = closePosition(account, id, price)
+      account = res.account
+      trades.push(res.trade)
+    }
+    this.commit(account)
+    return trades
   }
 
   liquidate(prices: Record<string, number>): void {

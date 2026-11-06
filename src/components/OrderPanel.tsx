@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchTicker } from '../lib/binance'
-import { baseAsset, fmtMoney, fmtPrice, fmtQty } from '../lib/format'
-import { FEE_RATE, paper, TradeError, usePaperAccount, type Side } from '../lib/paperTrading'
+import { baseAsset, fmtMoney, fmtPrice, fmtQty, fmtSigned } from '../lib/format'
+import { FEE_RATE, paper, TradeError, usePaperAccount, type Market, type Side } from '../lib/paperTrading'
 import { usePrice } from '../lib/ws'
 import { ArrowDownIcon, ArrowUpIcon, BoltIcon, ChevronDownIcon } from './Icons'
 
@@ -10,15 +10,34 @@ interface Props {
   onOpenSymbols: () => void
 }
 
+const MARKET_KEY = 'ts:market:v1'
+
+function savedMarket(): Market {
+  try {
+    return localStorage.getItem(MARKET_KEY) === 'spot' ? 'spot' : 'futures'
+  } catch {
+    return 'futures'
+  }
+}
+
 export default function OrderPanel({ symbol, onOpenSymbols }: Props) {
   const account = usePaperAccount()
   const livePrice = usePrice(symbol)
+  const [market, setMarket] = useState<Market>(savedMarket)
   const [restPrice, setRestPrice] = useState<number | null>(null)
   const [side, setSide] = useState<Side>('long')
   const [unit, setUnit] = useState<'usdt' | 'qty'>('usdt')
   const [size, setSize] = useState('')
   const [leverage, setLeverage] = useState(5)
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(MARKET_KEY, market)
+    } catch {
+      /* ignore */
+    }
+  }, [market])
 
   useEffect(() => {
     setRestPrice(null)
@@ -37,21 +56,34 @@ export default function OrderPanel({ symbol, onOpenSymbols }: Props) {
 
   useEffect(() => {
     if (!message) return
-    const timer = window.setTimeout(() => setMessage(null), 3200)
+    const timer = window.setTimeout(() => setMessage(null), 3600)
     return () => window.clearTimeout(timer)
   }, [message])
 
   const mark = livePrice ?? restPrice
+  const effLeverage = market === 'spot' ? 1 : leverage
   const sizeNum = Number(size.replace(',', '.')) || 0
   const notional = unit === 'usdt' ? sizeNum : sizeNum * (mark ?? 0)
   const qty = mark && mark > 0 ? notional / mark : 0
-  const margin = notional / leverage
+  const margin = notional / effLeverage
   const fee = notional * FEE_RATE
   const required = margin + fee
-  const insufficient = required > account.cash + 1e-9
-  const maxUsdt = useMemo(() => Math.max(0, account.cash * 0.999 * leverage), [account.cash, leverage])
+  const insufficient = market === 'futures' && required > account.cash + 1e-9
+  const maxUsdt = useMemo(() => Math.max(0, account.cash * 0.999 * effLeverage), [account.cash, effLeverage])
+
+  const spotQty = useMemo(
+    () =>
+      account.positions
+        .filter((p) => p.market === 'spot' && p.symbol === symbol)
+        .reduce((sum, p) => sum + p.qty, 0),
+    [account.positions, symbol],
+  )
 
   const fillPct = (pct: number) => {
+    if (market === 'spot' && side === 'short') {
+      if (mark && spotQty > 0) setSize((spotQty * pct * mark).toFixed(2))
+      return
+    }
     const amount = maxUsdt * pct
     if (unit === 'usdt') setSize(amount >= 1 ? amount.toFixed(2) : '')
     else if (mark) setSize((amount / mark).toFixed(6))
@@ -62,11 +94,31 @@ export default function OrderPanel({ symbol, onOpenSymbols }: Props) {
       setMessage({ kind: 'error', text: 'Esperando precio de mercado…' })
       return
     }
-    try {
-      paper.open({ symbol, side, size: sizeNum, unit, leverage, price: mark })
+
+    if (market === 'spot' && side === 'short') {
+      if (spotQty <= 0) {
+        setMessage({ kind: 'error', text: `No tienes ${baseAsset(symbol)} en spot para vender` })
+        return
+      }
+      const trades = paper.closeSpot(symbol, mark)
+      const pnl = trades.reduce((sum, t) => sum + t.pnl - t.fee, 0)
+      const sold = trades.reduce((sum, t) => sum + t.qty, 0)
       setMessage({
         kind: 'ok',
-        text: `${side === 'long' ? 'Long' : 'Short'} abierto en ${baseAsset(symbol)} a ${fmtPrice(mark)}`,
+        text: `Vendido ${fmtQty(sold)} ${baseAsset(symbol)} a ${fmtPrice(mark)} · ${fmtSigned(pnl)} USDT`,
+      })
+      setSize('')
+      return
+    }
+
+    try {
+      paper.open({ symbol, side, size: sizeNum, unit, leverage: effLeverage, price: mark, market })
+      setMessage({
+        kind: 'ok',
+        text:
+          market === 'spot'
+            ? `Comprado ${baseAsset(symbol)} a ${fmtPrice(mark)} (spot, sin apalancamiento)`
+            : `${side === 'long' ? 'Long' : 'Short'} abierto en ${baseAsset(symbol)} a ${fmtPrice(mark)}`,
       })
       setSize('')
     } catch (err) {
@@ -76,6 +128,17 @@ export default function OrderPanel({ symbol, onOpenSymbols }: Props) {
       })
     }
   }
+
+  const buyLabel = market === 'spot' ? 'Comprar' : 'Long'
+  const sellLabel = market === 'spot' ? 'Vender' : 'Short'
+  const actionLabel =
+    market === 'spot'
+      ? side === 'long'
+        ? 'Comprar'
+        : 'Vender'
+      : side === 'long'
+        ? 'Abrir Long'
+        : 'Abrir Short'
 
   return (
     <div className="order-panel">
@@ -94,6 +157,25 @@ export default function OrderPanel({ symbol, onOpenSymbols }: Props) {
         </span>
       </button>
 
+      <div className="market-toggle" role="group" aria-label="Mercado">
+        <button
+          type="button"
+          className={market === 'spot' ? 'active' : ''}
+          aria-pressed={market === 'spot'}
+          onClick={() => setMarket('spot')}
+        >
+          Spot
+        </button>
+        <button
+          type="button"
+          className={market === 'futures' ? 'active' : ''}
+          aria-pressed={market === 'futures'}
+          onClick={() => setMarket('futures')}
+        >
+          Futuros
+        </button>
+      </div>
+
       <div className="side-toggle" role="group" aria-label="Dirección">
         <button
           type="button"
@@ -101,7 +183,7 @@ export default function OrderPanel({ symbol, onOpenSymbols }: Props) {
           aria-pressed={side === 'long'}
           onClick={() => setSide('long')}
         >
-          <ArrowUpIcon size={15} /> Long
+          <ArrowUpIcon size={15} /> {buyLabel}
         </button>
         <button
           type="button"
@@ -109,7 +191,7 @@ export default function OrderPanel({ symbol, onOpenSymbols }: Props) {
           aria-pressed={side === 'short'}
           onClick={() => setSide('short')}
         >
-          <ArrowDownIcon size={15} /> Short
+          <ArrowDownIcon size={15} /> {sellLabel}
         </button>
       </div>
 
@@ -145,31 +227,38 @@ export default function OrderPanel({ symbol, onOpenSymbols }: Props) {
             </button>
           ))}
         </div>
+        {market === 'spot' && (
+          <p className="spot-note">
+            En spot no hay apalancamiento. Disponible: {spotQty > 0 ? `${fmtQty(spotQty)} ${baseAsset(symbol)}` : 'sin posición'}
+          </p>
+        )}
       </div>
 
-      <div className="field">
-        <div className="field-label">
-          <span>Apalancamiento</span>
-          <span className="mono leverage-value">{leverage}x</span>
+      {market === 'futures' && (
+        <div className="field">
+          <div className="field-label">
+            <span>Apalancamiento</span>
+            <span className="mono leverage-value">{leverage}x</span>
+          </div>
+          <input
+            type="range"
+            min={1}
+            max={20}
+            step={1}
+            value={leverage}
+            onChange={(e) => setLeverage(Number(e.target.value))}
+            className="range"
+            aria-label="Apalancamiento"
+          />
+          <div className="quick-row leverage-chips">
+            {[1, 3, 5, 10, 20].map((l) => (
+              <button key={l} type="button" className={`quick-chip${leverage === l ? ' active' : ''}`} onClick={() => setLeverage(l)}>
+                {l}x
+              </button>
+            ))}
+          </div>
         </div>
-        <input
-          type="range"
-          min={1}
-          max={20}
-          step={1}
-          value={leverage}
-          onChange={(e) => setLeverage(Number(e.target.value))}
-          className="range"
-          aria-label="Apalancamiento"
-        />
-        <div className="quick-row leverage-chips">
-          {[1, 3, 5, 10, 20].map((l) => (
-            <button key={l} type="button" className={`quick-chip${leverage === l ? ' active' : ''}`} onClick={() => setLeverage(l)}>
-              {l}x
-            </button>
-          ))}
-        </div>
-      </div>
+      )}
 
       <dl className="order-summary">
         <div>
@@ -177,7 +266,7 @@ export default function OrderPanel({ symbol, onOpenSymbols }: Props) {
           <dd className="mono">{qty > 0 ? fmtQty(qty) : '—'}</dd>
         </div>
         <div>
-          <dt>Margen</dt>
+          <dt>{market === 'spot' ? 'Coste' : 'Margen'}</dt>
           <dd className="mono">{margin > 0 ? `${fmtMoney(margin)} USDT` : '—'}</dd>
         </div>
         <div>
@@ -196,12 +285,17 @@ export default function OrderPanel({ symbol, onOpenSymbols }: Props) {
         onClick={submit}
         disabled={sizeNum <= 0 || !mark}
       >
-        {side === 'long' ? 'Abrir Long' : 'Abrir Short'}
+        {actionLabel}
         {notional > 0 ? <span className="submit-sub">{fmtMoney(notional)} USDT</span> : null}
       </button>
 
       {message && <p className={`form-msg ${message.kind}`}>{message.text}</p>}
-      <p className="disclaimer">Cuenta demo con 10.000 USDT virtuales. Sin dinero real ni claves API.</p>
+      <p className="disclaimer">
+        {market === 'spot'
+          ? 'Spot demo: compras y vendes al contado, sin apalancamiento.'
+          : 'Futuros demo: long y short con 1x–20x sobre 10.000 USDT virtuales.'}{' '}
+        Sin dinero real ni claves API.
+      </p>
     </div>
   )
 }

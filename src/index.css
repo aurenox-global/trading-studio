@@ -836,6 +836,42 @@ button {
   color: var(--muted);
 }
 
+.market-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  margin-bottom: 8px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.market-toggle button {
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.market-toggle button.active {
+  color: var(--text);
+  background: rgba(91, 140, 255, 0.16);
+  border-color: rgba(91, 140, 255, 0.35);
+}
+
+.spot-note {
+  margin: 8px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--faint);
+}
+
 .side-toggle {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1798,9 +1834,6 @@ button {
     display: none !important;
   }
 
-  .side-toggle {
-    display: none;
-  }
 
   .charts-area {
     padding: 0;

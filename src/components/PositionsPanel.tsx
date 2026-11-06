@@ -28,7 +28,7 @@ function PositionRow({ position }: { position: Position }) {
           {position.side === 'long' ? 'LONG' : 'SHORT'}
         </span>
         <span className="pos-symbol">{position.symbol.replace(/USDT$/, '')}<span className="muted">/USDT</span></span>
-        <span className="pos-lev">{position.leverage}x</span>
+        <span className="pos-lev">{position.market === 'spot' ? 'SPOT' : `${position.leverage}x`}</span>
         <button
           type="button"
           className="close-pos"
@@ -165,7 +165,7 @@ export default function PositionsPanel() {
                   <div className="hist-main">
                     <span className={`side-badge ${t.side}`}>{t.side === 'long' ? 'L' : 'S'}</span>
                     <span className="hist-symbol">{t.symbol.replace(/USDT$/, '')}</span>
-                    <span className="muted small">{t.leverage}x</span>
+                    <span className="muted small">{t.market === 'spot' ? 'SPOT' : `${t.leverage}x`}</span>
                     {t.liquidated && <span className="liq-tag">liq.</span>}
                   </div>
                   <div className="hist-meta">
