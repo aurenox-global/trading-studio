@@ -249,13 +249,15 @@ export default function App() {
   )
 
   const addPane = useCallback(() => {
-    setPanes((prev) => {
-      if (prev.length >= 4) return prev
-      const pane = makePane(prev.length)
-      setActiveId(pane.id)
-      return [...prev, pane]
-    })
-  }, [])
+    if (panes.length >= 4) return
+    const used = new Set(panes.map((p) => p.symbol))
+    const free = DEFAULT_SYMBOLS.find((sym) => !used.has(sym))
+    const pane = makePane(panes.length)
+    if (free) pane.symbol = free
+    setPanes([...panes, pane])
+    setActiveId(pane.id)
+    setPickerPaneId(pane.id)
+  }, [panes])
 
   const account = usePaperAccount()
   const pickerPane = pickerPaneId ? panes.find((p) => p.id === pickerPaneId) : null
@@ -342,7 +344,13 @@ export default function App() {
       <TabsBar
         panes={panes}
         activeId={activeId}
-        onSelect={setActiveId}
+        onSelect={(id) => {
+          if (id === activeId) {
+            setPickerPaneId(id)
+            return
+          }
+          setActiveId(id)
+        }}
         onAdd={addPane}
         onClose={removePane}
         onTrade={() => setSheet('trade')}

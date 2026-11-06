@@ -1888,6 +1888,13 @@ button {
     gap: 5px;
   }
 
+  .symbol-btn {
+    padding: 8px 8px 8px 6px;
+    min-height: 36px;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.03);
+  }
+
   .pane-sub {
     padding: 0 6px 6px;
   }

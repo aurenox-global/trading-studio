@@ -264,14 +264,14 @@ await cdp.send('Page.reload', { ignoreCache: false })
 await sleep(4000)
 
 const tabsVisible = await evaluate("getComputedStyle(document.querySelector('.tabs-bar')).display !== 'none'")
-const tabs = await evaluate("document.querySelectorAll('.tab:not(.add)').length")
+const tabs = await evaluate("document.querySelectorAll('.tab-main').length")
 const visiblePanes = await evaluate(`[...document.querySelectorAll('.pane-slot')].filter(el => getComputedStyle(el).visibility !== 'hidden').length`)
 check('mobile shows tab bar', tabsVisible === true, `${tabs} tabs`)
 check('mobile shows exactly one chart', visiblePanes === 1, `${visiblePanes} visible pane(s)`)
 
 const secondTab = await evaluate("document.querySelectorAll('.tab:not(.add)')[1]?.textContent || ''")
 if (secondTab) {
-  await evaluate("document.querySelectorAll('.tab:not(.add)')[1].click()")
+  await evaluate("document.querySelectorAll('.tab-main')[1].click()")
   await sleep(900)
 }
 const visibleAfterTab = await evaluate(`[...document.querySelectorAll('.pane-slot')].filter(el => getComputedStyle(el).visibility !== 'hidden').length`)
