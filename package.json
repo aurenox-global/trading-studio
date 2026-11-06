@@ -1,0 +1,36 @@
+{
+  "name": "trading-studio",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview --port 4173",
+    "verify:logic": "esbuild scripts/verify-logic.ts --bundle --platform=node --format=esm --external:react --outfile=node_modules/.tmp/verify-logic.mjs --log-level=warning && node node_modules/.tmp/verify-logic.mjs",
+    "verify:e2e": "node scripts/headless-check.mjs"
+  },
+  "dependencies": {
+    "lightweight-charts": "^4.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "esbuild": "^0.28.2",
+    "oxlint": "^1.90.0",
+    "typescript": "~7.0.2",
+    "vite": "^8.3.6"
+  },
+  "description": "Trading Studio — charting multpanel y cuenta demo de trading",
+  "license": "MIT",
+  "homepage": "https://aurenox-global.github.io/trading-studio/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aurenox-global/trading-studio.git"
+  }
+}
