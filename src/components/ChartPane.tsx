@@ -16,7 +16,7 @@ import { baseAsset, fmtPct, fmtPrice } from '../lib/format'
 import type { Candle, PaneState } from '../lib/types'
 import { klineStream, miniTickerStream, prices, streams, useStreamStatus, type KlineEvent, type MiniTickerEvent } from '../lib/ws'
 import TimeframeSelector from './TimeframeSelector'
-import { AlertIcon, ChevronDownIcon, LayersIcon, MaximizeIcon, MinimizeIcon, RefreshIcon, SlidersIcon } from './Icons'
+import { AlertIcon, ChevronDownIcon, CloseIcon, LayersIcon, MaximizeIcon, MinimizeIcon, RefreshIcon, SlidersIcon } from './Icons'
 
 interface Props {
   pane: PaneState
@@ -24,12 +24,14 @@ interface Props {
   onChange: (patch: Partial<PaneState>) => void
   onOpenSymbols: () => void
   onToggleMax: () => void
+  onClose: () => void
+  canClose: boolean
 }
 
 const UP = '#2ebd85'
 const DOWN = '#f6465d'
 
-export default function ChartPane({ pane, tv, onChange, onOpenSymbols, onToggleMax }: Props) {
+export default function ChartPane({ pane, tv, onChange, onOpenSymbols, onToggleMax, onClose, canClose }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartHostRef = useRef<HTMLDivElement>(null)
   const rsiHostRef = useRef<HTMLDivElement>(null)
@@ -488,6 +490,11 @@ export default function ChartPane({ pane, tv, onChange, onOpenSymbols, onToggleM
           >
             {pane.maximized ? <MinimizeIcon size={16} /> : <MaximizeIcon size={16} />}
           </button>
+          {canClose && (
+            <button type="button" className="icon-btn danger" aria-label="Cerrar panel" onClick={onClose}>
+              <CloseIcon size={16} />
+            </button>
+          )}
         </div>
       </header>
 

@@ -1,31 +1,43 @@
 import { baseAsset } from '../lib/format'
 import type { PaneState } from '../lib/types'
-import { BoltIcon, PlusIcon } from './Icons'
+import { BoltIcon, CloseIcon, PlusIcon } from './Icons'
 
 interface Props {
   panes: PaneState[]
   activeId: string
   onSelect: (id: string) => void
   onAdd: () => void
+  onClose: (id: string) => void
   onTrade: () => void
   openPositions: number
 }
 
-export default function TabsBar({ panes, activeId, onSelect, onAdd, onTrade, openPositions }: Props) {
+export default function TabsBar({ panes, activeId, onSelect, onAdd, onClose, onTrade, openPositions }: Props) {
   return (
     <nav className="tabs-bar" aria-label="Símbolos">
       <div className="tabs-scroll">
         {panes.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className={`tab${p.id === activeId ? ' active' : ''}`}
-            onClick={() => onSelect(p.id)}
-            aria-current={p.id === activeId}
-          >
-            <span className="tab-symbol">{baseAsset(p.symbol)}</span>
-            <span className="tab-tf">{p.timeframe}</span>
-          </button>
+          <div key={p.id} className={`tab${p.id === activeId ? ' active' : ''}`}>
+            <button
+              type="button"
+              className="tab-main"
+              onClick={() => onSelect(p.id)}
+              aria-current={p.id === activeId}
+            >
+              <span className="tab-symbol">{baseAsset(p.symbol)}</span>
+              <span className="tab-tf">{p.timeframe}</span>
+            </button>
+            {panes.length > 1 && (
+              <button
+                type="button"
+                className="tab-close"
+                onClick={() => onClose(p.id)}
+                aria-label={`Cerrar pestaña ${baseAsset(p.symbol)}`}
+              >
+                <CloseIcon size={12} />
+              </button>
+            )}
+          </div>
         ))}
         {panes.length < 4 && (
           <button type="button" className="tab add" onClick={onAdd} aria-label="Añadir gráfico">

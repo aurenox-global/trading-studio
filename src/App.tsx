@@ -41,6 +41,13 @@ const PANE_COUNT: Record<LayoutId, number> = {
   '3': 3,
 }
 
+function layoutForCount(count: number, current: LayoutId): LayoutId {
+  if (count <= 1) return '1x1'
+  if (count === 2) return current === '2x1' || current === '1x2' ? current : '2x1'
+  if (count === 3) return '3'
+  return '2x2'
+}
+
 const LAYOUT_BUTTONS: { id: LayoutId; label: string; Icon: typeof LayoutSingleIcon }[] = [
   { id: '1x1', label: '1 panel', Icon: LayoutSingleIcon },
   { id: '2x1', label: '2 paneles en columnas', Icon: LayoutColsIcon },
@@ -230,6 +237,17 @@ export default function App() {
     setPanes((prev) => prev.map((p) => (p.id === id ? { ...p, maximized: !p.maximized } : { ...p, maximized: false })))
   }, [])
 
+  const removePane = useCallback(
+    (id: string) => {
+      if (panes.length <= 1) return
+      const next = panes.filter((p) => p.id !== id)
+      setPanes(next)
+      setLayout((current) => layoutForCount(next.length, current))
+      if (activeId === id) setActiveId(next[0].id)
+    },
+    [panes, activeId],
+  )
+
   const addPane = useCallback(() => {
     setPanes((prev) => {
       if (prev.length >= 4) return prev
@@ -310,6 +328,7 @@ export default function App() {
             onOpenSymbols={(id) => setPickerPaneId(id)}
             onActivate={setActiveId}
             onToggleMax={toggleMax}
+            onClosePane={removePane}
           />
         </div>
         <aside className="side-panel" aria-label="Panel de trading">
@@ -325,6 +344,7 @@ export default function App() {
         activeId={activeId}
         onSelect={setActiveId}
         onAdd={addPane}
+        onClose={removePane}
         onTrade={() => setSheet('trade')}
         openPositions={account.positions.length}
       />

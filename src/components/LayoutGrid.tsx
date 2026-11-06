@@ -10,6 +10,7 @@ interface Props {
   onOpenSymbols: (id: string) => void
   onActivate: (id: string) => void
   onToggleMax: (id: string) => void
+  onClosePane: (id: string) => void
 }
 
 export default function LayoutGrid({
@@ -21,6 +22,7 @@ export default function LayoutGrid({
   onOpenSymbols,
   onActivate,
   onToggleMax,
+  onClosePane,
 }: Props) {
   return (
     <div className={`layout-grid layout-${layout}`}>
@@ -36,6 +38,8 @@ export default function LayoutGrid({
             onChange={(patch) => onChangePane(pane.id, patch)}
             onOpenSymbols={() => onOpenSymbols(pane.id)}
             onToggleMax={() => onToggleMax(pane.id)}
+            onClose={() => onClosePane(pane.id)}
+            canClose={panes.length > 1}
           />
         </div>
       ))}

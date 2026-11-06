@@ -304,6 +304,11 @@ button {
   background: rgba(255, 255, 255, 0.055);
 }
 
+.icon-btn.danger:hover {
+  color: #f6465d;
+  background: rgba(246, 70, 93, 0.12);
+}
+
 .icon-btn.active {
   color: #cddcff;
   background: rgba(91, 140, 255, 0.14);
@@ -1927,17 +1932,47 @@ button {
   .tab {
     flex: 0 0 auto;
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0;
-    min-width: 62px;
-    padding: 6px 11px;
+    align-items: center;
+    padding-right: 4px;
     border: 1px solid transparent;
     border-radius: 10px;
     background: transparent;
     color: var(--muted);
+  }
+
+  .tab-main {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    min-width: 52px;
+    padding: 6px 2px 6px 11px;
+    border: none;
+    background: transparent;
+    color: inherit;
     font-family: inherit;
+    font-size: inherit;
+    text-align: left;
     cursor: pointer;
+  }
+
+  .tab-close {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--faint);
+    cursor: pointer;
+  }
+
+  .tab-close:hover {
+    background: rgba(246, 70, 93, 0.16);
+    color: #f6465d;
   }
 
   .tab.active {
